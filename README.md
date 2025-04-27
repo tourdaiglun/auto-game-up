@@ -1,77 +1,78 @@
 # auto-game-up
 Auto Repack &amp; Upload est un outil simple pour Windows qui automatise totalement le processus de :  Repack d'un fichier .rar  Nettoyage des fichiers indésirables  Ajout d'un commentaire personnalisé dans l'archive  Upload automatique de l'archive vers PixelDrain  Génération et copie du lien public de téléchargement..
 
-🎮 Auto Repack & Upload by cFinder
-Auto Repack & Upload est un outil simple pour Windows qui automatise totalement le processus de :
 
-Repack d'un fichier .rar
 
-Nettoyage des fichiers indésirables
+# 📦 Auto Repack & Upload
 
-Ajout d'un commentaire personnalisé dans l'archive
+**Auto Repack & Upload** est un outil simple pour Windows qui :
+- Automatise le nettoyage, repack et la recompression d'un fichier `.rar`
+- Ajoute un commentaire personnalisé à l'archive
+- Upload automatiquement l'archive sur **PixelDrain**
+- Génère un **lien public** prêt à partager
 
-Upload automatique de l'archive vers PixelDrain
+---
 
-Génération et copie du lien public de téléchargement
+## ✨ Fonctionnalités principales
+- Suppression automatique des fichiers inutiles `.url`
+- Ajout automatique d'un fichier `logo.png` à l'archive
+- Commentaire personnalisé injecté dans l'archive (`commentaire_template.txt`)
+- Upload direct sur **PixelDrain** via API
+- Copie automatique du lien final dans le presse-papier
 
-📦 Fonctionnalités principales :
-Demande d'informations au démarrage :
+---
 
-Nom du jeu
+## 🔧 Personnalisation
 
-Version
+### Modifier votre Token API PixelDrain
+1. Ouvrez le fichier `auto_repack_pixeldrain.bat`
+2. Remplacez la valeur de `pixeldrain_api_key` par **votre** clé API personnelle :
+   ```batch
+   set "pixeldrain_api_key=votre-clé-api-ici"
+   ```
 
-Nom du repacker
 
-Glisser-déposer le fichier .rar source
+---
 
-Extraction automatique du fichier
+### Modifier le commentaire inséré dans l'archive
+1. Ouvrez le fichier `commentaire_template.txt`
+2. Personnalisez le texte comme vous voulez.
+   
+⚡ Le script remplacera automatiquement `%%REPACKER%%` par le nom du repacker que vous donnez au lancement ! repacker = le crédit de la personne qui a créé le fichié 
 
-Suppression automatique des fichiers .url inutiles
+---
 
-Compression dans une nouvelle archive .rar propre
+### Modifier le logo intégré
+- Remplacez simplement le fichier `logo.png` par votre propre image (même nom).
+- Le fichier sera ajouté automatiquement dans toutes les archives générées.
 
-Ajout automatique d'un logo ASCII et d'un commentaire dans l'archive
+---
 
-Upload automatique sur PixelDrain via clé API
+## 📂 Structure du projet
 
-Génération d'un lien public + copie dans le presse-papier
+```plaintext
+/auto_repack_pixeldrain.bat      <- Le script principal
+/commentaire_template.txt        <- Le modèle de commentaire à insérer
+/logo.png                        <- Le logo à insérer dans chaque archive
+/Archives/                       <- Dossier où les archives générées sont stockées
+```
 
-Ouverture automatique du lien dans votre navigateur
+---
 
-🚀 Pourquoi utiliser cet outil ?
-Gagner du temps sur vos releases
+## 📋 Notes importantes
+- Assurez-vous que **WinRAR** est installé et accessible au chemin :
+  ```
+  C:\Program Files\WinRAR\WinRAR.exe
+  ```
+- Utilisation recommandée sous **Windows 10 ou 11**.
+- Nécessite **curl** installé (normalement présent nativement sous Windows 10/11).
 
-Standardiser vos packs avec une signature professionnelle
 
-Partager instantanément vos fichiers via un lien public
 
-Simplifier toutes les opérations techniques à 1 seul script
 
-📋 Prérequis :
-Windows 10/11
 
-WinRAR installé sur C:\Program Files\WinRAR\WinRAR.exe
 
-Connexion Internet
-
-Clé API PixelDrain (déjà intégrée pour usage public)
-
-📥 Comment l'utiliser :
-Lancez full_auto_repack_upload.bat
-
-Remplissez les informations demandées
-
-Glissez votre fichier .rar
-
-Laissez le script faire tout le travail !
-
-🔥 Notes :
-Le lien PixelDrain est automatiquement copié dans votre presse-papier
-
-Vous pouvez modifier le commentaire dans commentaire_template.txt
-
-Toutes les erreurs sont gérées proprement avec des pauses
-
-Ce projet est développé pour la communauté cFinder.
+Ce projet est développé pour la communauté cFinder.xyz
 Merci de ne pas redistribuer sans crédit ! ❤️
+
+Crédit : lolo04 / TourDaiglun
