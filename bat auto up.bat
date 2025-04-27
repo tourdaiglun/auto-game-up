@@ -44,7 +44,7 @@ set "commentaire=commentaire.txt"
 set "logo=logo.png"
 set "temp_folder=extracted"
 set "pixeldrain_api_url=https://pixeldrain.com/api/file"
-set "pixeldrain_api_key=d4c47035-ff06-4304-a09f-c1ac33efdddb"
+set "pixeldrain_api_key=ton pixeldrain token ici"
 
 :: === INPUT UTILISATEUR ===
 echo ========================================
