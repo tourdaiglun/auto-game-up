@@ -10,7 +10,7 @@ set "commentaire=commentaire.txt"
 set "logo=logo.png"
 set "temp_folder=extracted"
 
-:: === INPUT UTILISATEUR ===
+:: === INPUT UTILISATEUR ===.
 set /p "game_name=🕹️ Nom du jeu : "
 set /p "version=📦 Version du jeu : "
 set /p "repacker=👤 Nom du repacker (ex: FitGirl, DODI, etc) : "
