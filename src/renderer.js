@@ -1,80 +1,87 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- SÉLECTION DES ÉLÉMENTS DU DOM ---
-    const mainForm = document.getElementById('main-form');
-    const submitBtn = document.getElementById('submit-btn');
-    const statusText = document.getElementById('status-text');
-    const progressBar = document.getElementById('progress-bar');
-    const resultContainer = document.getElementById('result-container');
-    const publicLinkInput = document.getElementById('public_link');
-    const copyBtn = document.getElementById('copy-btn');
-    const signatureDisplay = document.getElementById('signature-display');
-    
+    const addGameForm = document.getElementById('add-game-form');
+    const queueList = document.getElementById('queue-list');
+    const startQueueBtn = document.getElementById('start-queue-btn');
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
     const closeModalBtn = document.getElementById('close-modal-btn');
     const settingsForm = document.getElementById('settings-form');
 
-    // --- LOGIQUE PRINCIPALE ---
-    mainForm.addEventListener('submit', (e) => {
+    let jobQueue = [];
+
+    addGameForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const data = {
+        const job = {
+            id: Date.now(),
             gameName: document.getElementById('game_name').value,
             version: document.getElementById('version').value,
             repacker: document.getElementById('repacker').value,
             inputRarPath: document.getElementById('input_rar').files[0]?.path,
             selectedApiKeyIndex: document.getElementById('api_key_selection').value,
             password: document.getElementById('archive_password').value,
-            archiveNameOverride: document.getElementById('archive_name_override').value
         };
-
-        if (!data.inputRarPath) {
-            alert("Veuillez sélectionner un fichier .rar à traiter !");
-            return;
-        }
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Traitement en cours...';
-        resultContainer.classList.add('hidden');
-        progressBar.style.width = '0%';
-        statusText.textContent = 'Initialisation...';
-        progressBar.style.backgroundColor = 'var(--success)';
-
-        window.api.startProcess(data);
+        if (!job.inputRarPath) { alert("Veuillez sélectionner un fichier .rar !"); return; }
+        jobQueue.push(job);
+        renderQueue();
+        addGameForm.reset();
     });
 
-    window.api.onUpdateStatus(({ message, progress }) => {
-        statusText.textContent = message;
-        if (progress !== undefined) progressBar.style.width = `${progress}%`;
-    });
-
-    window.api.onProcessComplete(({ success, link, error }) => {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Lancer le Traitement';
-        if (success) {
-            statusText.textContent = 'Terminé !';
-            progressBar.style.width = '100%';
-            publicLinkInput.value = link;
-            resultContainer.classList.remove('hidden');
+    function renderQueue() {
+        queueList.innerHTML = '';
+        if (jobQueue.length === 0) {
+            queueList.innerHTML = '<p style="text-align:center;color:var(--text-dark);">La file est vide.</p>';
+            startQueueBtn.disabled = true;
         } else {
-            statusText.textContent = `Erreur : ${error}`;
-            progressBar.style.width = '100%';
-            progressBar.style.backgroundColor = 'var(--error)';
+            jobQueue.forEach(job => {
+                const item = document.createElement('div');
+                item.className = 'queue-item';
+                item.id = `job-${job.id}`;
+                item.innerHTML = `
+                    <div class="queue-item-header">${job.gameName} - ${job.version}</div>
+                    <div class="queue-item-status">Statut : En attente...</div>
+                    <div class="queue-item-progress-bar-container">
+                        <div class="queue-item-progress-bar"></div>
+                    </div>
+                `;
+                queueList.appendChild(item);
+            });
+            startQueueBtn.disabled = false;
+        }
+    }
+    
+    startQueueBtn.addEventListener('click', () => {
+        startQueueBtn.disabled = true;
+        document.querySelectorAll('.queue-item').forEach(item => item.style.opacity = '0.5');
+        window.api.startQueue(jobQueue);
+    });
+    
+    window.api.onUpdateStatus(({ jobId, message, progress }) => {
+        const item = document.getElementById(`job-${jobId}`);
+        if (item) {
+            item.style.opacity = '1';
+            item.querySelector('.queue-item-status').textContent = `Statut : ${message}`;
+            item.querySelector('.queue-item-progress-bar').style.width = `${progress}%`;
         }
     });
 
-    copyBtn.addEventListener('click', () => {
-        publicLinkInput.select();
-        document.execCommand('copy');
-        copyBtn.textContent = 'Copié !';
-        setTimeout(() => { copyBtn.textContent = 'Copier'; }, 2000);
+    window.api.onProcessComplete(({ jobId, success, link, error }) => {
+        const item = document.getElementById(`job-${jobId}`);
+        if (item) {
+            item.style.opacity = '1';
+            const statusBar = item.querySelector('.queue-item-progress-bar');
+            if (success) {
+                item.querySelector('.queue-item-status').innerHTML = `✅ Terminé !<br><input type="text" value="${link}" onclick="this.select()" readonly>`;
+                statusBar.style.backgroundColor = 'var(--success)';
+                statusBar.style.width = '100%';
+            } else {
+                item.querySelector('.queue-item-status').textContent = `❌ Erreur : ${error}`;
+                statusBar.style.backgroundColor = 'var(--error)';
+                statusBar.style.width = '100%';
+            }
+        }
     });
-
-    // --- LOGIQUE DES PARAMÈTRES ---
-    async function loadInitialSettings() {
-        const settings = await window.api.getSettings();
-        signatureDisplay.textContent = settings.signature ? `par ${settings.signature}` : '';
-    }
-
+    
+    // --- GESTION DU MODAL PARAMÈTRES ---
     settingsBtn.addEventListener('click', async () => {
         const settings = await window.api.getSettings();
         document.getElementById('winrar_path').value = settings.winrarPath || '';
@@ -85,9 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('pixeldrain_api_key_3').value = settings.apiKey3 || '';
         settingsModal.classList.remove('hidden');
     });
-
     closeModalBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
-
     settingsForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const settings = {
@@ -102,9 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         window.api.saveSettings(settings);
         settingsModal.classList.add('hidden');
-        loadInitialSettings();
         alert('Paramètres sauvegardés !');
     });
-    
-    loadInitialSettings();
+
+    renderQueue();
 });

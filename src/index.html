@@ -2,73 +2,38 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Pro Repack Uploader</title>
+    <title>Repack Uploader Queue</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Pro Repack Uploader <span id="settings-btn">⚙️</span></h1>
-            <p id="signature-display"></p>
+            <h1>Repack Uploader <span id="settings-btn">⚙️</span></h1>
+            <p>Ajoutez des jeux à la file d'attente, puis lancez le traitement.</p>
         </header>
 
-        <main>
-            <form id="main-form">
+        <div class="add-form-container">
+            <h3>Ajouter un jeu à la file</h3>
+            <form id="add-game-form">
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label for="game_name">Nom du jeu</label>
-                        <input type="text" id="game_name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="version">Version</label>
-                        <input type="text" id="version" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="repacker">Repacker</label>
-                        <input type="text" id="repacker" placeholder="ex: FitGirl, DODI" required>
-                    </div>
+                    <div class="form-group"><label>Nom du jeu</label><input type="text" id="game_name" required></div>
+                    <div class="form-group"><label>Version</label><input type="text" id="version" required></div>
+                    <div class="form-group"><label>Repacker</label><input type="text" id="repacker" required></div>
                 </div>
-                <div class="form-group">
-                    <label for="input_rar">Fichier .rar à traiter</label>
-                    <input type="file" id="input_rar" accept=".rar" required>
+                <div class="form-group"><label>Fichier .rar source</label><input type="file" id="input_rar" accept=".rar" required></div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Clé API à utiliser</label><select id="api_key_selection" required><option value="1">Clé 1</option><option value="2">Clé 2</option><option value="3">Clé 3</option></select></div>
+                    <div class="form-group"><label>Mot de passe (optionnel)</label><input type="password" id="archive_password"></div>
                 </div>
-
-                <div class="form-group">
-                    <label for="api_key_selection">Clé API à utiliser pour l'upload</label>
-                    <select id="api_key_selection" required>
-                        <option value="1">Clé API 1</option>
-                        <option value="2">Clé API 2</option>
-                        <option value="3">Clé API 3</option>
-                    </select>
-                </div>
-
-                <details class="advanced-options">
-                    <summary>Options avancées</summary>
-                    <div class="form-group">
-                        <label for="archive_password">Mot de passe pour l'archive (optionnel)</label>
-                        <input type="password" id="archive_password" placeholder="Laissez vide si pas de mot de passe">
-                    </div>
-                    <div class="form-group">
-                        <label for="archive_name_override">Nom de l'archive final (optionnel)</label>
-                        <input type="text" id="archive_name_override" placeholder="Laissez vide pour le nom auto">
-                    </div>
-                </details>
-
-                <button type="submit" id="submit-btn">Lancer le Traitement</button>
+                <button type="submit">Ajouter à la file</button>
             </form>
-        </main>
+        </div>
 
-        <footer>
-            <div id="status-container">
-                <p>Statut : <span id="status-text">En attente...</span></p>
-                <div id="progress-bar-container"><div id="progress-bar"></div></div>
-                <div id="result-container" class="hidden">
-                    <p>✅ Upload terminé !</p>
-                    <input type="text" id="public_link" readonly>
-                    <button id="copy-btn">Copier le lien</button>
-                </div>
-            </div>
-        </footer>
+        <div class="queue-container">
+            <h2>File d'attente</h2>
+            <div id="queue-list"></div>
+            <button id="start-queue-btn" disabled>Lancer le traitement de la file</button>
+        </div>
     </div>
 
     <div id="settings-modal" class="modal hidden">
@@ -76,42 +41,16 @@
             <span id="close-modal-btn" class="close-btn">&times;</span>
             <h2>Paramètres</h2>
             <form id="settings-form">
-                 <div class="form-group">
-                    <label for="winrar_path">Chemin vers WinRAR.exe</label>
-                    <input type="text" id="winrar_path" placeholder="C:\Program Files\WinRAR\WinRAR.exe">
-                </div>
-                <div class="form-group">
-                    <label for="destination">Dossier de destination des archives</label>
-                    <input type="text" id="destination" placeholder="Archives">
-                </div>
-                 <div class="form-group">
-                    <label for="signature">Votre signature</label>
-                    <input type="text" id="signature" placeholder="{cFinder}">
-                </div>
-                <div class="form-group">
-                    <label for="template">Fichier template du commentaire (.txt)</label>
-                    <input type="file" id="template" accept=".txt">
-                </div>
-                 <div class="form-group">
-                    <label for="logo">Fichier logo (.png)</label>
-                    <input type="file" id="logo" accept=".png">
-                </div>
-
+                 <div class="form-group"><label for="winrar_path">Chemin vers WinRAR.exe</label><input type="text" id="winrar_path" placeholder="C:\Program Files\WinRAR\WinRAR.exe"></div>
+                <div class="form-group"><label for="destination">Dossier de destination</label><input type="text" id="destination" placeholder="Archives"></div>
+                 <div class="form-group"><label for="signature">Votre signature</label><input type="text" id="signature" placeholder="{cFinder}"></div>
+                <div class="form-group"><label for="template">Fichier template commentaire (.txt)</label><input type="file" id="template" accept=".txt"></div>
+                 <div class="form-group"><label for="logo">Fichier logo (.png)</label><input type="file" id="logo" accept=".png"></div>
                 <hr>
                 <h3>Clés API PixelDrain</h3>
-                <div class="form-group">
-                    <label for="pixeldrain_api_key_1">Clé API 1</label>
-                    <input type="password" id="pixeldrain_api_key_1">
-                </div>
-                <div class="form-group">
-                    <label for="pixeldrain_api_key_2">Clé API 2</label>
-                    <input type="password" id="pixeldrain_api_key_2">
-                </div>
-                <div class="form-group">
-                    <label for="pixeldrain_api_key_3">Clé API 3</label>
-                    <input type="password" id="pixeldrain_api_key_3">
-                </div>
-
+                <div class="form-group"><label for="pixeldrain_api_key_1">Clé API 1</label><input type="password" id="pixeldrain_api_key_1"></div>
+                <div class="form-group"><label for="pixeldrain_api_key_2">Clé API 2</label><input type="password" id="pixeldrain_api_key_2"></div>
+                <div class="form-group"><label for="pixeldrain_api_key_3">Clé API 3</label><input type="password" id="pixeldrain_api_key_3"></div>
                 <button type="submit">Sauvegarder les Paramètres</button>
             </form>
         </div>

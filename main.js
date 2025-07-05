@@ -12,10 +12,10 @@ const store = new Store();
 
 function createWindow() {
     const win = new BrowserWindow({
-        width: 700,
-        height: 850,
+        width: 800,
+        height: 900,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'), // Assurez-vous d'avoir un fichier preload.js
+            preload: path.join(__dirname, 'preload.js'),
         },
     });
     win.loadFile('index.html');
@@ -26,7 +26,7 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
 
-// Le preload est nécessaire pour la communication sécurisée
+// --- GESTION DES PARAMÈTRES ---
 ipcMain.handle('get-settings', () => {
     return {
         winrarPath: store.get('winrarPath'),
@@ -49,11 +49,9 @@ ipcMain.on('save-settings', (event, settings) => {
     store.set('apiKey3', settings.apiKey3);
 });
 
-ipcMain.handle('start-process', async (event, data) => {
+// --- GESTION DE LA FILE D'ATTENTE ---
+ipcMain.handle('start-queue', async (event, queue) => {
     const win = BrowserWindow.getFocusedWindow();
-    const tempFolder = path.join(app.getPath('temp'), 'pro-repack-uploader');
-    const commentaireFile = path.join(tempFolder, 'commentaire.txt');
-    
     const settings = {
         winrarPath: store.get('winrarPath'),
         destination: store.get('destination', 'Archives'),
@@ -65,67 +63,73 @@ ipcMain.handle('start-process', async (event, data) => {
         apiKey3: store.get('apiKey3'),
     };
 
-    const apiKeyToUse = settings[`apiKey${data.selectedApiKeyIndex}`];
+    for (const job of queue) {
+        const tempFolder = path.join(app.getPath('temp'), `repack-temp-${job.id}`);
+        const commentaireFile = path.join(tempFolder, 'commentaire.txt');
+        const apiKeyToUse = settings[`apiKey${job.selectedApiKeyIndex}`];
 
-    if (!settings.winrarPath || !settings.templatePath || !settings.logoPath || !apiKeyToUse) {
-        win.webContents.send('process-complete', { success: false, error: "Vérifiez les paramètres ! Un chemin (WinRAR, template, logo) ou la clé API est manquant." });
-        return;
-    }
+        if (!settings.winrarPath || !settings.templatePath || !settings.logoPath || !apiKeyToUse) {
+            win.webContents.send('process-complete', { jobId: job.id, success: false, error: "Paramètres manquants (WinRAR, template, logo ou clé API)." });
+            continue;
+        }
 
-    const archiveNameFormat = `by ${settings.signature}`;
-    const defaultArchiveName = `${data.gameName} ${data.version} -${data.repacker} ${archiveNameFormat}`;
-    const archiveName = data.archiveNameOverride ? data.archiveNameOverride.trim() : defaultArchiveName;
-    const finalArchivePath = path.join(settings.destination, `${archiveName}.rar`);
+        try {
+            await fs.rm(tempFolder, { recursive: true, force: true });
+            await fs.mkdir(tempFolder, { recursive: true });
 
-    try {
-        await fs.rm(tempFolder, { recursive: true, force: true });
-        await fs.mkdir(tempFolder, { recursive: true });
+            win.webContents.send('update-status', { jobId: job.id, message: 'Préparation du commentaire...', progress: 5 });
+            const templateContent = await fs.readFile(settings.templatePath, 'utf8');
+            const finalComment = templateContent.replace(/%%REPACKER%%/g, job.repacker);
+            await fs.writeFile(commentaireFile, finalComment, 'utf8');
+            
+            win.webContents.send('update-status', { jobId: job.id, message: 'Extraction...', progress: 15 });
+            await execFilePromise(settings.winrarPath, ['x', '-o+', job.inputRarPath, `${tempFolder}\\`]);
 
-        win.webContents.send('update-status', { message: 'Préparation du commentaire...', progress: 10 });
-        const templateContent = await fs.readFile(settings.templatePath, 'utf8');
-        const finalComment = templateContent.replace(/%%REPACKER%%/g, data.repacker);
-        await fs.writeFile(commentaireFile, finalComment, 'utf8');
-        
-        win.webContents.send('update-status', { message: 'Extraction de l\'archive source...', progress: 20 });
-        await execFilePromise(settings.winrarPath, ['x', '-o+', data.inputRarPath, `${tempFolder}\\`]);
-
-        win.webContents.send('update-status', { message: 'Nettoyage des fichiers...', progress: 50 });
-        const files = await fs.readdir(tempFolder, { withFileTypes: true, recursive: true });
-        for (const file of files) {
-            if(file.name.endsWith('.url')) {
-                await fs.rm(path.join(file.path, file.name));
+            win.webContents.send('update-status', { jobId: job.id, message: 'Nettoyage...', progress: 40 });
+            const files = await fs.readdir(tempFolder, { withFileTypes: true, recursive: true });
+            for (const file of files) {
+                if (file.name.endsWith('.url')) await fs.rm(path.join(file.path, file.name));
             }
+            await fs.copyFile(settings.logoPath, path.join(tempFolder, 'logo.png'));
+            
+            const archiveNameFormat = `by ${settings.signature}`;
+            const defaultArchiveName = `${job.gameName} ${job.version} -${job.repacker} ${archiveNameFormat}`;
+            const finalArchivePath = path.join(settings.destination, `${defaultArchiveName}.rar`);
+
+            win.webContents.send('update-status', { jobId: job.id, message: 'Compression...', progress: 60 });
+            await fs.mkdir(settings.destination, { recursive: true });
+            const args = ['a', '-r', '-ep1', '-m3', '-c-', `-z${commentaireFile}`];
+            if (job.password) args.push(`-p${job.password}`);
+            args.push(finalArchivePath, `${tempFolder}\\*`);
+            await execFilePromise(settings.winrarPath, args);
+
+            win.webContents.send('update-status', { jobId: job.id, message: 'Upload en cours...', progress: 80 });
+            const form = new FormData();
+            form.append('file', require('fs').createReadStream(finalArchivePath));
+            
+            const response = await axios.post('https://pixeldrain.com/api/file', form, {
+                headers: { ...form.getHeaders(), 'Authorization': `Basic ${Buffer.from(':' + apiKeyToUse).toString('base64')}` },
+                maxContentLength: Infinity, maxBodyLength: Infinity,
+                onUploadProgress: (progressEvent) => {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    win.webContents.send('update-status', { 
+                        jobId: job.id, 
+                        message: `Upload... ${percentCompleted}%`, 
+                        progress: 80 + (percentCompleted / 5)
+                    });
+                }
+            });
+
+            if (!response.data.success) throw new Error(response.data.message || 'Échec de l-upload');
+            
+            const publicLink = `https://pixeldrain.com/u/${response.data.id}`;
+            win.webContents.send('process-complete', { jobId: job.id, success: true, link: publicLink });
+
+        } catch (error) {
+            console.error(`Erreur pour le job ${job.id}:`, error);
+            win.webContents.send('process-complete', { jobId: job.id, success: false, error: error.message });
+        } finally {
+            await fs.rm(tempFolder, { recursive: true, force: true }).catch(err => console.error(`Failed to remove temp folder: ${err.message}`));
         }
-        await fs.copyFile(settings.logoPath, path.join(tempFolder, 'logo.png'));
-
-        win.webContents.send('update-status', { message: 'Création de la nouvelle archive...', progress: 60 });
-        await fs.mkdir(settings.destination, { recursive: true });
-        const args = ['a', '-r', '-ep1', '-m3', '-c-', `-z${commentaireFile}`];
-        if (data.password) args.push(`-p${data.password}`);
-        args.push(finalArchivePath, `${tempFolder}\\*`);
-        await execFilePromise(settings.winrarPath, args);
-
-        win.webContents.send('update-status', { message: 'Upload sur PixelDrain...', progress: 80 });
-        const form = new FormData();
-        form.append('file', require('fs').createReadStream(finalArchivePath));
-        
-        const response = await axios.post('https://pixeldrain.com/api/file', form, {
-            headers: { ...form.getHeaders(), 'Authorization': `Basic ${Buffer.from(':' + apiKeyToUse).toString('base64')}` },
-            maxContentLength: Infinity, maxBodyLength: Infinity
-        });
-
-        if (!response.data.success || !response.data.id) {
-            throw new Error(`Échec de l'upload: ${response.data.message || 'Réponse invalide'}`);
-        }
-        
-        const publicLink = `https://pixeldrain.com/u/${response.data.id}`;
-        win.webContents.send('update-status', { message: 'Upload terminé !', progress: 100 });
-        win.webContents.send('process-complete', { success: true, link: publicLink });
-
-    } catch (error) {
-        console.error(error);
-        win.webContents.send('process-complete', { success: false, error: error.message });
-    } finally {
-        await fs.rm(tempFolder, { recursive: true, force: true });
     }
 });
