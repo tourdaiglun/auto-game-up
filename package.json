@@ -1,0 +1,22 @@
+{
+  "name": "auto-game-up",
+  "version": "1.0.0",
+  "description": "Auto Repack &amp; Upload est un outil simple pour Windows qui automatise totalement le processus de :  Repack d'un fichier .rar  Nettoyage des fichiers indésirables  Ajout d'un commentaire personnalisé dans l'archive  Upload automatique de l'archive vers PixelDrain  Génération et copie du lien public de téléchargement..",
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tourdaiglun/auto-game-up.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/tourdaiglun/auto-game-up/issues"
+  },
+  "homepage": "https://github.com/tourdaiglun/auto-game-up#readme"
+}
